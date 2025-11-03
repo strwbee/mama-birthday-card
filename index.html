@@ -84,7 +84,7 @@
         
         .flame-container {
             position: absolute;
-            top: 20%;
+            top: 22%;
             left: 50%;
             transform: translate(-50%, -50%);
             z-index: 10;
@@ -357,7 +357,7 @@
             }
             
             // Detect blowing
-            if (average > 25) {
+            if (average > 40) {
                 console.log('Blow detected! Average:', average);
                 blowOutCandle();
             } else {
