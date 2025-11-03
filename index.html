@@ -11,20 +11,12 @@
             box-sizing: border-box;
         }
         
-        body {
-            overflow-x: hidden;
-            overflow-y: auto;
-            min-height: 100vh;
-            width: 100vw;
-            font-family: Arial, sans-serif;
+        html, body {
             margin: 0;
             padding: 0;
-            position: relative;
-        }
-        
-        html {
-            margin: 0;
-            padding: 0;
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
         }
         
         .card-container {
@@ -187,6 +179,16 @@
                 opacity: 0;
             }
         }
+
+        @supports (-webkit-touch-callout: none) {
+          html, body {
+                height: -webkit-fill-available;
+          }
+          .card-container {
+                height: -webkit-fill-available;
+          }
+        }
+
         
         .tap-area {
             position: absolute;
