@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Happy Birthday Mama!</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            overflow-x: hidden;
+            overflow-y: auto;
+            min-height: 100vh;
+            width: 100vw;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .card-container {
+            width: 100%;
+            height: 100vh;
+            perspective: 1000px;
+            position: sticky;
+            top: 0;
+            left: 0;
+        }
+        
+        .card {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.8s;
+            cursor: pointer;
+        }
+        
+        .card.flipped {
+            transform: rotateY(180deg);
+        }
+        
+        .card-face {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            backface-visibility: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .card-face img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            max-width: 100%;
+            max-height: 100%;
+        }
+        
+        .card-front {
+            z-index: 2;
+        }
+        
+        .card-back {
+            transform: rotateY(180deg);
+            position: relative;
+        }
+        
+        .candle-overlay {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .flame-container {
+            position: absolute;
+            top: 20%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+        }
+        
+        .flame {
+            width: 30px;
+            height: 40px;
+            background: linear-gradient(to top, #ff6b00 0%, #ffeb3b 50%, #fff 100%);
+            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+            animation: flicker 0.3s ease-in-out infinite alternate;
+            box-shadow: 0 0 25px #ff9800, 0 0 35px #ff5722;
+            opacity: 1;
+            transition: opacity 0.5s ease;
+        }
+        
+        .flame.blown-out {
+            opacity: 0;
+            animation: blowOut 0.5s ease-out forwards;
+        }
+        
+        .smoke {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 3px;
+            height: 3px;
+            background: #999;
+            border-radius: 50%;
+            opacity: 0;
+        }
+        
+        .smoke.active {
+            animation: smoke 2s ease-out forwards;
+        }
+        
+        @keyframes flicker {
+            0%, 100% { 
+                transform: scale(1) translateY(0);
+                opacity: 1;
+            }
+            50% { 
+                transform: scale(1.05) translateY(-2px);
+                opacity: 0.9;
+            }
+        }
+        
+        @keyframes blowOut {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.3, 0.5) translateX(-10px);
+                opacity: 0.5;
+            }
+            100% {
+                transform: scale(0) translateX(-20px);
+                opacity: 0;
+            }
+        }
+        
+        @keyframes smoke {
+            0% {
+                opacity: 0;
+                transform: translateX(-50%) translateY(0) scale(1);
+            }
+            10% {
+                opacity: 0.8;
+            }
+            100% {
+                opacity: 0;
+                transform: translateX(-50%) translateY(-60px) scale(3);
+            }
+        }
+        
+        .confetti {
+            position: fixed;
+            width: 12px;
+            height: 12px;
+            z-index: 100;
+        }
+        
+        @keyframes confetti-fall {
+            0% {
+                transform: translateY(0) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+        
+        .tap-area {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            z-index: 5;
+            pointer-events: auto;
+        }
+        
+        .blow-zone {
+            position: absolute;
+            width: 150px;
+            height: 150px;
+            top: 20%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 15;
+            pointer-events: auto;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+    </style>
+</head>
+<body>
+    <div class="card-container">
+        <div class="card" id="card">
+            <!-- Front of card -->
+            <div class="card-face card-front">
+                <img src="1.png" alt="Happy Birthday Mama">
+                <div class="tap-area" id="frontTapArea"></div>
+            </div>
+            
+            <!-- Back of card -->
+            <div class="card-face card-back">
+                <img src="2.png" alt="Birthday Cake">
+                <div class="candle-overlay">
+                    <div class="flame-container">
+                        <div class="flame" id="flame"></div>
+                        <div class="smoke" id="smoke"></div>
+                    </div>
+                </div>
+                <div class="blow-zone" id="blowZone"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const card = document.getElementById('card');
+        const frontTapArea = document.getElementById('frontTapArea');
+        const blowZone = document.getElementById('blowZone');
+        const flame = document.getElementById('flame');
+        const smoke = document.getElementById('smoke');
+        
+        let audioContext;
+        let analyser;
+        let microphone;
+        let dataArray;
+        let isListening = false;
+        let candleLit = true;
+        let isFlipped = false;
+        
+        // Flip card when tapping front
+        frontTapArea.addEventListener('click', async () => {
+            card.classList.add('flipped');
+            isFlipped = true;
+            // Auto-start listening when flipping to back
+            if (!isListening && candleLit) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    setupAudio(stream);
+                } catch (err) {
+                    console.log('Microphone access denied or not available');
+                }
+            }
+        });
+        frontTapArea.addEventListener('touchend', async (e) => {
+            e.preventDefault();
+            card.classList.add('flipped');
+            isFlipped = true;
+            // Auto-start listening when flipping to back
+            if (!isListening && candleLit) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    setupAudio(stream);
+                } catch (err) {
+                    console.log('Microphone access denied or not available');
+                }
+            }
+        });
+        
+        // Add tap area for back to flip back to front
+        const backImage = document.querySelector('.card-back img');
+        backImage.addEventListener('click', (e) => {
+            // Only flip back if not clicking on the blow zone
+            const rect = blowZone.getBoundingClientRect();
+            if (e.clientX < rect.left || e.clientX > rect.right || 
+                e.clientY < rect.top || e.clientY > rect.bottom) {
+                card.classList.remove('flipped');
+                isFlipped = false;
+                // Reset the candle when flipping back to front
+                resetCandle();
+            }
+        });
+        backImage.addEventListener('touchend', (e) => {
+            const touch = e.changedTouches[0];
+            const rect = blowZone.getBoundingClientRect();
+            if (touch.clientX < rect.left || touch.clientX > rect.right || 
+                touch.clientY < rect.top || touch.clientY > rect.bottom) {
+                e.preventDefault();
+                card.classList.remove('flipped');
+                isFlipped = false;
+                // Reset the candle when flipping back to front
+                resetCandle();
+            }
+        });
+        
+        // Start listening when tapping the blow zone
+        blowZone.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            if (!isListening && candleLit) {
+                console.log('Blow zone clicked, requesting microphone...');
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    setupAudio(stream);
+                    // Add visual feedback that mic is active
+                    flame.style.filter = 'brightness(1.3)';
+                    console.log('Microphone active, listening for blowing...');
+                } catch (err) {
+                    console.log('Microphone access denied, blowing out on tap');
+                    // If microphone fails, just blow it out on tap
+                    blowOutCandle();
+                }
+            }
+        });
+        
+        function setupAudio(stream) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioContext.createAnalyser();
+            microphone = audioContext.createMediaStreamSource(stream);
+            analyser.fftSize = 256;
+            
+            const bufferLength = analyser.frequencyBinCount;
+            dataArray = new Uint8Array(bufferLength);
+            
+            microphone.connect(analyser);
+            isListening = true;
+            checkForBlow();
+        }
+        
+        function checkForBlow() {
+            if (!isListening || !candleLit) return;
+            
+            analyser.getByteFrequencyData(dataArray);
+            
+            let sum = 0;
+            for (let i = 0; i < dataArray.length; i++) {
+                sum += dataArray[i];
+            }
+            const average = sum / dataArray.length;
+            
+            // Log the average volume for debugging
+            if (Math.random() < 0.1) { // Only log 10% of the time to avoid spam
+                console.log('Volume level:', Math.round(average));
+            }
+            
+            // Detect blowing
+            if (average > 25) {
+                console.log('Blow detected! Average:', average);
+                blowOutCandle();
+            } else {
+                requestAnimationFrame(checkForBlow);
+            }
+        }
+        
+        function blowOutCandle() {
+            if (!candleLit) return;
+            
+            candleLit = false;
+            flame.classList.add('blown-out');
+            smoke.classList.add('active');
+            blowZone.style.cursor = 'default';
+            
+            // Create confetti
+            createConfetti();
+            
+            // Stop listening
+            isListening = false;
+            if (microphone) {
+                microphone.disconnect();
+            }
+            if (audioContext) {
+                audioContext.close();
+            }
+        }
+        
+        function resetCandle() {
+            // Stop listening if still active
+            if (isListening) {
+                isListening = false;
+                if (microphone) {
+                    microphone.disconnect();
+                }
+                if (audioContext) {
+                    audioContext.close();
+                }
+            }
+            
+            // Reset candle state
+            candleLit = true;
+            flame.classList.remove('blown-out');
+            smoke.classList.remove('active');
+            blowZone.style.cursor = 'pointer';
+            
+            // Reset audio context for next time
+            audioContext = null;
+            analyser = null;
+            microphone = null;
+        }
+        
+        function createConfetti() {
+            const colors = ['#ffb3ba', '#ffcccf', '#ff9b9f', '#ffadb5', '#ffc4c8', '#ff8a8f'];
+            const confettiCount = 60;
+            
+            for (let i = 0; i < confettiCount; i++) {
+                setTimeout(() => {
+                    const confetti = document.createElement('div');
+                    confetti.className = 'confetti';
+                    confetti.style.left = Math.random() * 100 + '%';
+                    confetti.style.top = '0';
+                    confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+                    confetti.style.animation = `confetti-fall ${Math.random() * 2 + 2}s ease-out forwards`;
+                    confetti.style.animationDelay = Math.random() * 0.5 + 's';
+                    document.body.appendChild(confetti);
+                    
+                    setTimeout(() => confetti.remove(), 4000);
+                }, i * 25);
+            }
+        }
+    </script>
+</body>
+</html>
